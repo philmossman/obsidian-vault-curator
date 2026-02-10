@@ -1,0 +1,25 @@
+{
+  "couchdb": {
+    "host": "127.0.0.1",
+    "port": 5984,
+    "database": "obsidian",
+    "username": "your_username",
+    "password": "your_password"
+  },
+  "processor": {
+    "defaultModel": "qwen2.5-coder:7b",
+    "fallbackModel": "anthropic/claude-sonnet-4-5",
+    "defaultLimit": 10,
+    "ollamaHost": "http://localhost:11434"
+  },
+  "inbox": {
+    "path": "inbox/"
+  },
+  "filer": {
+    "defaultLimit": 10,
+    "minConfidence": 0.7,
+    "reviewQueuePath": "inbox/review-queue/",
+    "enableLearning": true,
+    "maxHistorySessions": 100
+  }
+}

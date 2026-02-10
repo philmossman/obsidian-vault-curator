@@ -1,0 +1,18 @@
+{
+  "name": "vault-curator",
+  "version": "2.0.0",
+  "description": "AI-powered note management for Obsidian vaults via CouchDB",
+  "main": "processor.js",
+  "scripts": {
+    "test": "node test-processor.js",
+    "process": "node telegram-processor.js"
+  },
+  "keywords": ["obsidian", "couchdb", "ai", "notes", "curator"],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "dependencies": {
+    "nano": "^10.1.2",
+    "node-fetch": "^2.7.0",
+    "@anthropic-ai/sdk": "^0.30.0"
+  }
+}
