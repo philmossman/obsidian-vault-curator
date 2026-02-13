@@ -2,9 +2,11 @@
 /**
  * Telegram Capture Handler
  * Processes /capture commands and creates inbox notes
+ * Now with auto-formatting!
  */
 
 const { captureNote } = require('./capture');
+const { formatVaultNote } = require('./vault-formatter');
 
 /**
  * Handle a Telegram message and check for /capture command
@@ -30,15 +32,27 @@ async function handleTelegramMessage(messageText) {
   }
   
   try {
+    // Step 1: Capture the note
     const notePath = await captureNote(noteText, { 
       source: 'telegram',
       capturedAt: new Date().toISOString()
     });
     
+    // Step 2: Auto-format the captured note
+    const formatResult = await formatVaultNote(notePath, { dryRun: false });
+    
+    // Build response message
+    let message = `✅ Note captured & formatted!\n📝 ${notePath}`;
+    
+    if (formatResult.changed) {
+      message += `\n\n✨ Formatted: ${formatResult.details.join(', ')}`;
+    }
+    
     return {
       captured: true,
       notePath,
-      message: `✅ Note captured!\n📝 ${notePath}`
+      formatted: formatResult.changed,
+      message
     };
   } catch (err) {
     return {
