@@ -3,27 +3,16 @@ const config = require('../obsidian-curator/config.json');
 const vaultClient = new VaultClient(config.couchdb);
 
 /**
- * Sanitize Unicode characters to prevent LiveSync corruption
- * LiveSync counts byte length vs string length differently for multibyte UTF-8
- * @param {string} text - Text to sanitize
- * @returns {string} - ASCII-safe text
+ * Sanitize Unicode characters (DEPRECATED - emojis are now safe!)
+ * This function is kept for backwards compatibility but no longer strips emojis.
+ * The VaultClient bug (character count vs byte count) has been fixed.
+ * @param {string} text - Text to process
+ * @returns {string} - Text unchanged (emojis preserved)
  */
 function sanitizeUnicode(text) {
-  return text
-    // Replace common emojis with text equivalents
-    .replace(/✅/g, '[DONE]')
-    .replace(/❌/g, '[FAIL]')
-    .replace(/⚠️/g, '[WARN]')
-    .replace(/→/g, '->')
-    .replace(/✓/g, '[OK]')
-    .replace(/✗/g, '[X]')
-    .replace(/📝/g, '[NOTE]')
-    .replace(/🔍/g, '[SEARCH]')
-    .replace(/💡/g, '[IDEA]')
-    // Remove all other emojis (range covers most emoji blocks)
-    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
-    // Remove other multibyte UTF-8 characters (keep basic Latin + common punctuation)
-    .replace(/[^\x00-\x7F]/g, '');
+  // Emojis are now safe! Just return text as-is.
+  // The bug was in vault-client.js using content.length instead of Buffer.byteLength()
+  return text;
 }
 
 /**
