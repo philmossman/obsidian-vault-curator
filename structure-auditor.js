@@ -294,14 +294,17 @@ class StructureAuditor {
   
   analyzeStructuralIssues() {
     // Check if methodology folders exist but are empty/near-empty
-    if (this.detectedMethodology) {
+    // Only warn if confidence is medium or high (intentional partial use is ok at low confidence)
+    if (this.detectedMethodology && this.detectedMethodology.confidence !== 'low') {
       const method = this.detectedMethodology.method;
       
       if (method.folders) {
+        // Only check folders that actually exist
         const emptyCore = method.folders.filter(f => {
-          // Count all notes in this folder and subfolders (recursive)
           const allNotes = this.notes.filter(n => n.path.startsWith(f + '/'));
-          return allNotes.length <= 1;
+          // Folder exists (has at least the folder structure) but has ≤1 note
+          const folderExists = this.folders.has(f) || allNotes.length > 0;
+          return folderExists && allNotes.length <= 1;
         });
         
         if (emptyCore.length > 0) {
@@ -330,21 +333,24 @@ class StructureAuditor {
                 'Choose a methodology once you hit 100+ notes.',
         action: 'Use inbox + 3-5 broad categories for now'
       });
+    } else {
+      // Methodology recommendation (only for larger vaults)
+      if (!this.detectedMethodology || this.detectedMethodology.confidence === 'low') {
+        this.recommendations.push({
+          priority: 'high',
+          category: 'methodology',
+          title: 'Choose an organizational system',
+          detail: 'No clear methodology detected. Popular options:\n' +
+                  '• PARA: for actionable, project-focused work\n' +
+                  '• Zettelkasten: for research and interconnected thinking\n' +
+                  '• ACCESS: for PKM with MOCs',
+          action: 'Review methodologies and commit to one'
+        });
+      }
     }
     
-    // Methodology recommendation
-    if (!this.detectedMethodology || this.detectedMethodology.confidence === 'low') {
-      this.recommendations.push({
-        priority: 'high',
-        category: 'methodology',
-        title: 'Choose an organizational system',
-        detail: 'No clear methodology detected. Popular options:\n' +
-                '• PARA: for actionable, project-focused work\n' +
-                '• Zettelkasten: for research and interconnected thinking\n' +
-                '• ACCESS: for PKM with MOCs',
-        action: 'Review methodologies and commit to one'
-      });
-    } else if (this.detectedMethodology.confidence === 'medium') {
+    // Partial methodology completion (any vault size)
+    if (this.detectedMethodology && this.detectedMethodology.confidence === 'medium') {
       this.recommendations.push({
         priority: 'medium',
         category: 'methodology',
