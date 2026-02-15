@@ -350,8 +350,11 @@ class VaultClient {
     const indentStr = '  '.repeat(indent);
     
     if (Array.isArray(value)) {
-      // Simple array on one line
-      lines.push(`${indentStr}${key}: [${value.join(', ')}]`);
+      // Block-style array (Obsidian-friendly)
+      lines.push(`${indentStr}${key}:`);
+      value.forEach(item => {
+        lines.push(`${indentStr}  - ${item}`);
+      });
     } else if (typeof value === 'object' && value !== null) {
       // Nested object
       lines.push(`${indentStr}${key}:`);
