@@ -5,14 +5,27 @@
   "main": "processor.js",
   "scripts": {
     "test": "node test-processor.js",
-    "process": "node telegram-processor.js"
+    "test:formatter": "node test-formatter.js",
+    "test:all": "node test-processor.js && node test-formatter.js",
+    "process": "node telegram-processor.js",
+    "format": "node telegram-formatter.js"
   },
-  "keywords": ["obsidian", "couchdb", "ai", "notes", "curator"],
+  "keywords": [
+    "obsidian",
+    "couchdb",
+    "ai",
+    "notes",
+    "curator"
+  ],
   "author": "OpenClaw",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
     "nano": "^10.1.2",
     "node-fetch": "^2.7.0",
-    "@anthropic-ai/sdk": "^0.30.0"
+    "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0"
   }
 }
