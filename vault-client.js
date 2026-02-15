@@ -151,6 +151,7 @@ class VaultClient {
     return result.rows
       .filter(row => !row.id.startsWith('h:') && !row.id.startsWith('_'))
       .filter(row => row.id !== 'obsydian_livesync_version')
+      .filter(row => !row.doc.deleted) // Exclude soft-deleted notes
       .map(row => ({
         path: row.doc.path,
         id: row.id,

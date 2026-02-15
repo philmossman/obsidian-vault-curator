@@ -213,17 +213,24 @@ class StructureAuditor {
       });
     }
     
-    // Check for single-note folders
-    const singleNotefolders = folderStats.filter(f => f.count === 1);
+    // Check for single-note folders (top-level only, with recursive counting)
+    const topLevelFolders = Array.from(this.folders.keys())
+      .filter(f => !f.includes('/'));
     
-    if (singleNotefolders.length > 3) {
+    const singleNoteFolders = topLevelFolders.filter(folder => {
+      // Count all notes in this folder and subfolders (recursive)
+      const allNotes = this.notes.filter(n => n.path.startsWith(folder + '/'));
+      return allNotes.length === 1;
+    });
+    
+    if (singleNoteFolders.length > 3) {
       this.issues.push({
         severity: 'medium',
         category: 'distribution',
         issue: 'Many single-note folders (structural orphans)',
-        detail: `${singleNotefolders.length} folders with only 1 note: ` +
-                singleNotefolders.slice(0, 5).map(f => f.folder).join(', ') +
-                (singleNotefolders.length > 5 ? '...' : ''),
+        detail: `${singleNoteFolders.length} folders with only 1 note: ` +
+                singleNoteFolders.slice(0, 5).join(', ') +
+                (singleNoteFolders.length > 5 ? '...' : ''),
         recommendation: 'Consolidate related folders or move notes to more populated areas'
       });
     }
@@ -292,8 +299,9 @@ class StructureAuditor {
       
       if (method.folders) {
         const emptyCore = method.folders.filter(f => {
-          const folder = this.folders.get(f);
-          return !folder || folder.length <= 1;
+          // Count all notes in this folder and subfolders (recursive)
+          const allNotes = this.notes.filter(n => n.path.startsWith(f + '/'));
+          return allNotes.length <= 1;
         });
         
         if (emptyCore.length > 0) {
@@ -398,14 +406,22 @@ class StructureAuditor {
   }
   
   getStructureOverview() {
+    // Calculate total notes (including nested) for each top-level folder
     const topFolders = Array.from(this.folders.entries())
       .filter(([folder]) => !folder.includes('/'))
-      .map(([folder, notes]) => ({
-        folder,
-        count: notes.length,
-        percentage: (notes.length / this.notes.length * 100).toFixed(1)
-      }))
-      .sort((a, b) => b.count - a.count);
+      .map(([folder, notes]) => {
+        // Count all notes in this folder and its subfolders
+        const allNotes = this.notes.filter(n => n.path.startsWith(folder + '/'));
+        const total = allNotes.length;
+        
+        return {
+          folder,
+          count: notes.length,  // Direct children only
+          total: total,         // Including all nested
+          percentage: (total / this.notes.length * 100).toFixed(1)
+        };
+      })
+      .sort((a, b) => b.total - a.total);
     
     const nestedFolders = Array.from(this.folders.entries())
       .filter(([folder]) => folder.includes('/'))

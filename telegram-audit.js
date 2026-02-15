@@ -51,7 +51,12 @@ function formatReport(report) {
   // Top-level structure
   output.push('**📁 Top-Level Folders**');
   structure.topLevel.slice(0, 8).forEach(f => {
-    output.push(`• ${f.folder}: ${f.count} notes (${f.percentage}%)`);
+    // Show total if different from direct count
+    if (f.total !== f.count) {
+      output.push(`• ${f.folder}: ${f.total} notes (${f.count} direct, ${f.total - f.count} nested) — ${f.percentage}%`);
+    } else {
+      output.push(`• ${f.folder}: ${f.count} notes (${f.percentage}%)`);
+    }
   });
   if (structure.topLevel.length > 8) {
     output.push(`• ... and ${structure.topLevel.length - 8} more`);
