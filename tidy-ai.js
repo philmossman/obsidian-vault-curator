@@ -169,7 +169,9 @@ async function triageIssue(vault, issue, canonicalFolders, options = {}) {
     prompt = buildGenericPrompt(issue, content, canonicalFolders, memoryContext);
   }
 
-  const raw = await chat(prompt, '', { model: 'llama3.1:8b', format: 'json', temperature: 0.2 });
+  const config = loadConfig();
+  const tidyModel = (config.tidy && config.tidy.aiModel) || 'llama3.1:8b';
+  const raw = await chat(prompt, '', { model: tidyModel, format: 'json', temperature: 0.2 });
 
   return parseAIResponse(raw);
 }

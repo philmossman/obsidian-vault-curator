@@ -13,37 +13,113 @@ const VaultClient = require('./vault-client');
  * Get vault client instance
  */
 function getVaultClient() {
-  const config = require('./config.json');
+  const config = require('./config')();
   return new VaultClient(config.couchdb);
 }
 
 /**
- * Search vault for notes related to a topic/insight
+ * Search vault for notes related to a topic/insight.
+ *
+ * Two-pass approach:
+ *   Pass 1: Score all notes by path only (cheap — no DB reads)
+ *   Pass 2: Read content of top N candidates and re-score with full data
+ *
  * @param {string} topic - Topic or project name
  * @param {string[]} tags - Associated tags
  * @param {string} content - Full content for semantic matching
+ * @param {Object} options - { contentCandidates: number } — how many notes to read for content scoring (default: 10)
  * @returns {Promise<Array>} Array of {note, score, reasoning}
  */
-async function searchRelated(topic, tags = [], content = '') {
+async function searchRelated(topic, tags = [], content = '', options = {}) {
+  const { contentCandidates = 10 } = options;
   const vault = getVaultClient();
   const allNotes = await vault.listNotes();
+
+  // Pass 1: score by path only to find top candidates
+  const pathScored = allNotes
+    .map(note => ({
+      note,
+      pathScore: scoreByPath(note, topic, tags)
+    }))
+    .filter(({ pathScore }) => pathScore > 0)
+    .sort((a, b) => b.pathScore - a.pathScore);
+
+  // Pass 2: read content for top N candidates and full-score them
+  const topCandidates = pathScored.slice(0, contentCandidates);
   const results = [];
 
-  for (const note of allNotes) {
-    const score = calculateRelevance(note, topic, tags, content);
-    if (score > 0.3) { // Minimum relevance threshold
+  for (const { note, pathScore } of topCandidates) {
+    let fullNote = note;
+
+    // Attempt to read note content for richer scoring
+    try {
+      const read = await vault.readNote(note.path);
+      if (read) {
+        const { frontmatter, body } = vault.parseFrontmatter(read.content);
+        fullNote = {
+          ...note,
+          content: body,
+          tags: frontmatter.tags || []
+        };
+      }
+    } catch (_) {
+      // If read fails, fall back to path-only scoring
+    }
+
+    const score = calculateRelevance(fullNote, topic, tags, content);
+    if (score > 0.3) {
       results.push({
         note: note.path,
-        score: score,
-        reasoning: explainScore(note, topic, tags, score)
+        score,
+        reasoning: explainScore(fullNote, topic, tags, score)
       });
     }
   }
 
-  // Sort by score descending
-  results.sort((a, b) => b.score - a.score);
-  
-  return results;
+  // Also include any non-top-candidate notes that scored > 0 on path alone
+  // (but below content threshold) — scored at path level only
+  const remainingPathMatches = pathScored.slice(contentCandidates)
+    .map(({ note, pathScore }) => ({
+      note: note.path,
+      score: pathScore,
+      reasoning: explainScore(note, topic, tags, pathScore)
+    }))
+    .filter(r => r.score > 0.3);
+
+  const allResults = [...results, ...remainingPathMatches];
+  allResults.sort((a, b) => b.score - a.score);
+
+  return allResults;
+}
+
+/**
+ * Score a note by path alone (no content read).
+ * Used in Pass 1 to cheaply rank candidates.
+ * @returns {number} Score 0.0-0.5 (path-only max)
+ */
+function scoreByPath(note, topic, tags) {
+  let score = 0;
+  const notePath = note.path.toLowerCase();
+  const topicSlug = slugify(topic);
+
+  if (notePath.includes(topicSlug)) {
+    score += 0.4;
+  } else if (notePath.includes(topic.toLowerCase())) {
+    score += 0.3;
+  } else {
+    const pathParts = notePath.split('/');
+    if (pathParts.some(part => part.includes(topicSlug))) {
+      score += 0.2;
+    }
+  }
+
+  // Living document bonus
+  const livingDocPatterns = ['build-log', 'buildlog', 'changelog', 'action-plan', 'roadmap', 'todo', 'tasks', 'notes'];
+  if (livingDocPatterns.some(p => notePath.includes(p))) {
+    score += 0.1;
+  }
+
+  return score;
 }
 
 /**
@@ -52,8 +128,11 @@ async function searchRelated(topic, tags = [], content = '') {
  */
 function calculateRelevance(note, topic, tags, content) {
   let score = 0;
-  const path = note.path.toLowerCase();
-  const title = note.title?.toLowerCase() || '';
+  const notePath = note.path.toLowerCase();
+  const path = notePath; // alias for readability below
+  // Derive title from filename (no separate title field in CouchDB metadata)
+  const filename = notePath.split('/').pop().replace(/\.md$/, '').replace(/[-_]/g, ' ');
+  const title = filename;
   const noteTags = note.tags || [];
   const noteContent = note.content?.toLowerCase() || '';
 

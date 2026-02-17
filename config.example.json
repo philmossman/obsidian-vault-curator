@@ -21,5 +21,14 @@
     "reviewQueuePath": "inbox/review-queue/",
     "enableLearning": true,
     "maxHistorySessions": 100
+  },
+  "tidy": {
+    "canonicalFolders": ["inbox","Projects","Areas","Research","Photography","Atlas","Archives","Resources","Slipbox"],
+    "systemFolders": ["logs","ix:iPhone","ix:macbook"],
+    "rootExceptions": ["Index.md","Welcome.md"],
+    "autoFixThreshold": 0.8,
+    "aiActThreshold": 0.6,
+    "tinyNoteThreshold": 300,
+    "aiModel": "llama3.1:8b"
   }
 }

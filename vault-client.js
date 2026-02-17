@@ -42,6 +42,29 @@ class VaultClient {
   }
 
   /**
+   * Check CouchDB connectivity.
+   * Returns { ok: true } if reachable, throws with a friendly message if not.
+   * Call this at the start of command handlers to fail fast with a clear error.
+   */
+  async ping() {
+    try {
+      await this.nano.db.get(this.db.config.db);
+      return { ok: true };
+    } catch (err) {
+      if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.statusCode === undefined) {
+        throw new Error('CouchDB unavailable — is the server running? (ECONNREFUSED)');
+      }
+      if (err.statusCode === 401) {
+        throw new Error('CouchDB authentication failed — check credentials in config.json');
+      }
+      if (err.statusCode === 404) {
+        throw new Error(`CouchDB database not found — check "database" in config.json`);
+      }
+      throw new Error(`CouchDB error: ${err.message}`);
+    }
+  }
+
+  /**
    * Read a note by path
    * @param {string} path - Note path (e.g., "inbox/note.md")
    * @returns {Promise<Object|null>} Note object with path, content, metadata
@@ -75,6 +98,9 @@ class VaultClient {
     } catch (err) {
       if (err.statusCode === 404) {
         return null;
+      }
+      if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
+        throw new Error(friendlyCouchError(err));
       }
       throw err;
     }
@@ -147,17 +173,24 @@ class VaultClient {
    * @returns {Promise<Array>} Array of note objects with path, id, mtime, size
    */
   async listNotes() {
-    const result = await this.db.list({ include_docs: true });
-    return result.rows
-      .filter(row => !row.id.startsWith('h:') && !row.id.startsWith('_'))
-      .filter(row => row.id !== 'obsydian_livesync_version')
-      .filter(row => !row.doc.deleted) // Exclude soft-deleted notes
-      .map(row => ({
-        path: row.doc.path,
-        id: row.id,
-        mtime: row.doc.mtime,
-        size: row.doc.size
-      }));
+    try {
+      const result = await this.db.list({ include_docs: true });
+      return result.rows
+        .filter(row => !row.id.startsWith('h:') && !row.id.startsWith('_'))
+        .filter(row => row.id !== 'obsydian_livesync_version')
+        .filter(row => !row.doc.deleted) // Exclude soft-deleted notes
+        .map(row => ({
+          path: row.doc.path,
+          id: row.id,
+          mtime: row.doc.mtime,
+          size: row.doc.size
+        }));
+    } catch (err) {
+      if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
+        throw new Error(friendlyCouchError(err));
+      }
+      throw err;
+    }
   }
 
   /**
@@ -422,5 +455,30 @@ class VaultClient {
   }
 }
 
+/**
+ * Convert a raw CouchDB/nano error into a human-friendly message.
+ * Use this in telegram handlers to surface clean errors to Phil.
+ * @param {Error} err
+ * @returns {string} Friendly error message
+ */
+function friendlyCouchError(err) {
+  if (!err) return 'Unknown error';
+  const msg = err.message || '';
+  if (err.code === 'ECONNREFUSED' || msg.includes('ECONNREFUSED')) {
+    return 'CouchDB is not reachable — is the server running? (ECONNREFUSED)';
+  }
+  if (err.code === 'ECONNRESET' || msg.includes('ECONNRESET')) {
+    return 'CouchDB connection was reset — server may be restarting.';
+  }
+  if (err.statusCode === 401 || msg.includes('Unauthorized')) {
+    return 'CouchDB authentication failed — check credentials in config.json';
+  }
+  if (err.statusCode === 404) {
+    return 'CouchDB database not found — check "database" in config.json';
+  }
+  return `CouchDB error: ${msg}`;
+}
+
 module.exports = VaultClient;
 module.exports.sanitizeUnicode = sanitizeUnicode;
+module.exports.friendlyCouchError = friendlyCouchError;
