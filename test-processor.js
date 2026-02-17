@@ -137,7 +137,7 @@ test('Build note with frontmatter', () => {
   const content = vaultClient.buildNote(frontmatter, body);
   assert(content.startsWith('---'), 'Should start with frontmatter delimiter');
   assert(content.includes('created: 2026-02-10T09:00:00Z'), 'Should include created field');
-  assert(content.includes('tags: [work, urgent]'), 'Should include tags array');
+  assert(content.includes('  - work') && content.includes('  - urgent'), 'Should include tags as YAML block list');
   assert(content.includes('This is the body'), 'Should include body');
 });
 

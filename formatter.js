@@ -5,10 +5,6 @@
 
 const fs = require('fs').promises;
 const path = require('path');
-const unified = require('unified');
-const remarkParse = require('remark-parse');
-const remarkStringify = require('remark-stringify');
-const remarkGfm = require('remark-gfm');
 const VaultClient = require('./vault-client');
 
 // Unicode sanitization is handled by VaultClient.writeNote() internally.

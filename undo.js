@@ -94,6 +94,11 @@ async function undoLastFiling(sessionId) {
  * @returns {Promise<void>}
  */
 async function undoOperation(vaultClient, operation) {
+  // Guard: content is pruned after 7 days
+  if (operation._contentExpired) {
+    throw new Error(`Cannot undo — note content expired (>7 days old). Original path was: ${operation.originalPath}`);
+  }
+
   if (operation.action === 'file' || operation.action === 'queue') {
     // Restore original note
     await vaultClient.writeNote(operation.originalPath, operation.originalContent);
@@ -191,19 +196,41 @@ async function loadHistory() {
 }
 
 /**
- * Save filing history to disk
+ * Save filing history to disk.
+ * Applies two pruning rules to keep the file manageable:
+ *   1. Keep at most 100 sessions (drop oldest beyond that)
+ *   2. Strip note content (originalContent / newContent) from sessions
+ *      older than 7 days — metadata is retained for auditing, content
+ *      is only needed for the actual undo operation.
  * @param {Object} history - History data
  * @returns {Promise<void>}
  */
 async function saveHistory(history) {
-  // Clean up old sessions (keep last 100)
-  if (history.sessions && Object.keys(history.sessions).length > 100) {
+  if (!history.sessions) {
+    history.sessions = {};
+  }
+
+  const now = Date.now();
+  const CONTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+  // Prune content from sessions older than 7 days
+  for (const session of Object.values(history.sessions)) {
+    const age = now - (session.startTime || 0);
+    if (age > CONTENT_TTL_MS && session.operations) {
+      session.operations = session.operations.map(op => {
+        const { originalContent, newContent, ...rest } = op;
+        return { ...rest, _contentExpired: true };
+      });
+    }
+  }
+
+  // Keep at most 100 sessions (drop oldest)
+  if (Object.keys(history.sessions).length > 100) {
     const sorted = Object.entries(history.sessions)
       .sort((a, b) => b[1].startTime - a[1].startTime);
-    
     history.sessions = Object.fromEntries(sorted.slice(0, 100));
   }
-  
+
   const json = JSON.stringify(history, null, 2);
   await fs.writeFile(HISTORY_PATH, json, 'utf8');
 }
