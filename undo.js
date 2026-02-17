@@ -107,6 +107,24 @@ async function undoOperation(vaultClient, operation) {
         throw err;
       }
     }
+
+  } else if (operation.action === 'tidy-delete') {
+    // Restore a note that was deleted by /tidy
+    if (operation.originalContent) {
+      await vaultClient.writeNote(operation.originalPath, operation.originalContent);
+    }
+
+  } else if (operation.action === 'tidy-move') {
+    // Reverse a /tidy move: restore to original path, delete from target
+    await vaultClient.writeNote(operation.originalPath, operation.originalContent);
+    try {
+      await vaultClient.deleteNote(operation.targetPath);
+    } catch (err) {
+      if (!err.message.includes('404')) {
+        throw err;
+      }
+    }
+
   } else {
     throw new Error(`Unknown operation type: ${operation.action}`);
   }

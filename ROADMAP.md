@@ -93,7 +93,7 @@ AI-powered Obsidian vault management that captures, organizes, maintains, and sy
 
 ---
 
-## 🚧 Phase 4.3: Housekeeping Tools (PLANNING)
+## ✅ Phase 4.3: Housekeeping Tools (COMPLETE)
 
 **Goal:** Automated maintenance and cleanup
 
@@ -111,11 +111,11 @@ AI-powered Obsidian vault management that captures, organizes, maintains, and sy
 
 **Command:** `/tidy [all|orphans|links|tags|stale|empty|frontmatter|stubs]`
 
-**Status:** 🚧 Planning phase
+**Status:** ✅ Complete (2026-02-17)
 
 ---
 
-## 💡 Phase 5: Intelligence & Synthesis (FUTURE)
+## ✅ Phase 5: Intelligence & Synthesis (COMPLETE)
 
 **Goal:** Transform vault from storage into living knowledge base
 
@@ -137,7 +137,7 @@ AI-powered Obsidian vault management that captures, organizes, maintains, and sy
 - **Smart MOC Generator** - Auto-generate Maps of Content for major topics
 - **Concept Extractor** - Identify recurring themes and create concept notes
 
-**Status:** 💡 Concept phase
+**Status:** ✅ Complete (2026-02-16) — weekly cron live, `/distill` command available
 
 ---
 

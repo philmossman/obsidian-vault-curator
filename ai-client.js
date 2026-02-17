@@ -134,7 +134,7 @@ async function analyzeWithOllama(prompt, model) {
 async function analyzeWithClaude(prompt, model) {
   const Anthropic = require('@anthropic-ai/sdk');
   const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY || require('os').homedir() + '/.config/openclaw/anthropic-key.txt'
+    apiKey: resolveAnthropicKey()
   });
   
   const message = await anthropic.messages.create({
@@ -183,8 +183,111 @@ function sanitizeAnalysisResult(result) {
   return sanitized;
 }
 
+/**
+ * Generic chat function for arbitrary prompts
+ * @param {string} prompt - System/instruction prompt
+ * @param {string} content - User content/context
+ * @param {Object} options - { model, format: 'json'|'text', temperature }
+ * @returns {Promise<string>} AI response
+ */
+async function chat(prompt, content, options = {}) {
+  const {
+    model = 'sonnet',
+    format = 'text',
+    temperature = 0.3
+  } = options;
+
+  // Resolve model alias
+  const modelMap = {
+    'sonnet': 'anthropic/claude-sonnet-4-5',
+    'haiku': 'anthropic/claude-haiku-4-5',
+    'opus': 'anthropic/claude-opus-4-5',
+    'qwen': 'qwen2.5-coder:7b'
+  };
+  const resolvedModel = modelMap[model] || model;
+
+  const fullPrompt = `${prompt}\n\n${content}`;
+
+  if (resolvedModel.includes('anthropic') || resolvedModel.includes('claude')) {
+    return await chatWithClaude(fullPrompt, resolvedModel, temperature);
+  } else {
+    return await chatWithOllama(fullPrompt, resolvedModel, temperature);
+  }
+}
+
+/**
+ * Chat with Claude
+ */
+function resolveAnthropicKey() {
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
+  try {
+    const fs = require('fs');
+    const os = require('os');
+    // Primary: OpenClaw auth profiles
+    const authPath = `${os.homedir()}/.openclaw/agents/main/agent/auth-profiles.json`;
+    const auth = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+    const token = auth?.profiles?.['anthropic:default']?.token;
+    if (token) return token;
+  } catch (_) {}
+  try {
+    const fs = require('fs');
+    const os = require('os');
+    // Fallback: legacy key file
+    return fs.readFileSync(`${os.homedir()}/.config/openclaw/anthropic-key.txt`, 'utf8').trim();
+  } catch (_) {}
+  throw new Error('Anthropic API key not found. Set ANTHROPIC_API_KEY or check auth-profiles.json');
+}
+
+async function chatWithClaude(prompt, model, temperature) {
+  const Anthropic = require('@anthropic-ai/sdk');
+  const anthropic = new Anthropic({
+    apiKey: resolveAnthropicKey()
+  });
+
+  const message = await anthropic.messages.create({
+    model: model.replace('anthropic/', ''),
+    max_tokens: 4096,
+    temperature: temperature,
+    messages: [
+      { role: 'user', content: prompt }
+    ]
+  });
+
+  return message.content[0].text;
+}
+
+/**
+ * Chat with Ollama
+ */
+async function chatWithOllama(prompt, model, temperature) {
+  const config = require('./config')();
+  const fetch = (await import('node-fetch')).default;
+
+  const response = await fetch(`${config.processor.ollamaHost}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: model,
+      prompt: prompt,
+      stream: false,
+      options: {
+        temperature: temperature,
+        num_predict: 4096
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.response;
+}
+
 module.exports = {
   analyzeNote,
   buildPrompt,
+  chat,
   sanitizeUnicode
 };
