@@ -133,7 +133,7 @@ class VaultClient {
       path: path,
       ctime: existingDoc ? existingDoc.ctime : now,
       mtime: now,
-      size: safeContent.length,
+      size: Buffer.byteLength(safeContent, 'utf8'),
       type: options.type || 'plain',
       eden: {}
     };
@@ -310,7 +310,7 @@ class VaultClient {
 
     // String (remove surrounding quotes if present)
     if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && item.endsWith("'"))) {
+        (value.startsWith("'") && value.endsWith("'"))) {
       return value.slice(1, -1);
     }
 

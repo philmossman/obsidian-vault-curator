@@ -4,7 +4,6 @@
  */
 
 const VaultClient = require('./vault-client');
-const { sanitizeUnicode } = require('./vault-client');
 const loadConfig = require('./config');
 const { trackOperation } = require('./undo');
 const { getFolderHints } = require('./learning');
@@ -161,7 +160,7 @@ async function fileNote(vaultClient, note, options) {
   const finalPath = await resolveCollision(vaultClient, targetPath, dryRun);
   
   // Build updated note with tags and backlinks
-  const updatedNote = buildUpdatedNote(note, suggestions);
+  const updatedNote = buildUpdatedNote(vaultClient, note, suggestions);
   
   if (dryRun) {
     return {
@@ -255,11 +254,12 @@ async function queueForReview(vaultClient, note, dryRun, sessionId) {
 
 /**
  * Build updated note with tags and backlinks applied
+ * @param {VaultClient} vaultClient - Vault client instance (for buildNote)
  * @param {Object} note - Original note
  * @param {Object} suggestions - AI suggestions
  * @returns {string} Updated note content
  */
-function buildUpdatedNote(note, suggestions) {
+function buildUpdatedNote(vaultClient, note, suggestions) {
   const frontmatter = { ...note.frontmatter };
   
   // Add tags from suggestions
@@ -363,15 +363,6 @@ function parseConfidence(confidence) {
 function generateSessionId() {
   return `filer-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 }
-
-// Mock VaultClient buildNote for use in this module
-const vaultClient = {
-  buildNote: (frontmatter, body) => {
-    const VaultClient = require('./vault-client');
-    const client = new VaultClient({ host: 'dummy', port: 0, database: 'dummy', username: 'x', password: 'x' });
-    return client.buildNote(frontmatter, body);
-  }
-};
 
 module.exports = {
   fileNotes,

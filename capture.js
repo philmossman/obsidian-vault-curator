@@ -1,19 +1,12 @@
-const VaultClient = require('../obsidian-curator/vault-client');
-const config = require('../obsidian-curator/config.json');
+const VaultClient = require('./vault-client');
+const loadConfig = require('./config');
+const config = loadConfig();
 const vaultClient = new VaultClient(config.couchdb);
 
-/**
- * Sanitize Unicode characters (DEPRECATED - emojis are now safe!)
- * This function is kept for backwards compatibility but no longer strips emojis.
- * The VaultClient bug (character count vs byte count) has been fixed.
- * @param {string} text - Text to process
- * @returns {string} - Text unchanged (emojis preserved)
- */
-function sanitizeUnicode(text) {
-  // Emojis are now safe! Just return text as-is.
-  // The bug was in vault-client.js using content.length instead of Buffer.byteLength()
-  return text;
-}
+// Unicode sanitization is handled by VaultClient.writeNote() internally.
+// All content written to the vault is sanitized at that layer.
+// Do not duplicate sanitization here — import from vault-client if needed.
+const { sanitizeUnicode } = require('./vault-client');
 
 /**
  * Capture a note to the inbox with YAML frontmatter

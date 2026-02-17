@@ -11,18 +11,10 @@ const remarkStringify = require('remark-stringify');
 const remarkGfm = require('remark-gfm');
 const VaultClient = require('./vault-client');
 
-/**
- * Sanitize Unicode characters (DEPRECATED - emojis are now safe!)
- * This function is kept for backwards compatibility but no longer strips emojis.
- * The VaultClient bug (character count vs byte count) has been fixed.
- * @param {string} text - Text to process
- * @returns {string} - Text unchanged (emojis preserved)
- */
-function sanitizeUnicode(text) {
-  // Emojis are now safe! Just return text as-is.
-  // The bug was in vault-client.js using content.length instead of Buffer.byteLength()
-  return text;
-}
+// Unicode sanitization is handled by VaultClient.writeNote() internally.
+// All content written to the vault is sanitized at that layer.
+// Import the canonical version here for any pre-write use.
+const { sanitizeUnicode } = require('./vault-client');
 
 /**
  * Parse YAML frontmatter from note content
