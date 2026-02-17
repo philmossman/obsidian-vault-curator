@@ -194,10 +194,10 @@ This is a test note to verify the filing workflow.
 }
 
 /**
- * Test 7: Unicode handling (sanitization)
+ * Test 7: Unicode passthrough (LiveSync bug RESOLVED — emojis now preserved)
  */
 async function testUnicodeHandling() {
-  console.log('\n=== Test 7: Unicode Handling ===');
+  console.log('\n=== Test 7: Unicode Passthrough (Bug Resolved) ===');
   
   try {
     const config = loadConfig();
@@ -216,26 +216,26 @@ This note has emojis: 🎯 📝 💡
 And special characters: → ← ✓ ✗
 `;
     
-    // Write note (should auto-sanitize)
+    // Write note (emojis should pass through — LiveSync bug resolved)
     await vaultClient.writeNote(unicodePath, unicodeContent);
     
     // Read it back
     const savedNote = await vaultClient.readNote(unicodePath);
     
-    // Check that emojis are replaced with text equivalents
-    assert(savedNote.content.includes('[DONE]'), 'Emoji sanitized to [DONE]');
-    assert(savedNote.content.includes('[TARGET]'), 'Emoji sanitized to [TARGET]');
-    assert(savedNote.content.includes('[NOTE]'), 'Emoji sanitized to [NOTE]');
-    assert(savedNote.content.includes('[IDEA]'), 'Emoji sanitized to [IDEA]');
-    assert(savedNote.content.includes('->'), 'Arrow sanitized to ->');
-    assert(savedNote.content.includes('[OK]'), 'Checkmark sanitized to [OK]');
+    // Check that emojis are preserved (not stripped or replaced)
+    assert(savedNote.content.includes('✅'), 'Checkmark emoji preserved');
+    assert(savedNote.content.includes('🎯'), 'Target emoji preserved');
+    assert(savedNote.content.includes('📝'), 'Note emoji preserved');
+    assert(savedNote.content.includes('💡'), 'Idea emoji preserved');
+    assert(savedNote.content.includes('→'), 'Arrow character preserved');
+    assert(!savedNote.content.includes('[DONE]'), 'No old replacement tokens');
     
     // Clean up
     await vaultClient.deleteNote(unicodePath);
-    console.log('  Unicode sanitization working correctly');
+    console.log('  Unicode passthrough working correctly');
     
   } catch (err) {
-    assert(false, `Unicode handling test failed: ${err.message}`);
+    assert(false, `Unicode passthrough test failed: ${err.message}`);
   }
 }
 

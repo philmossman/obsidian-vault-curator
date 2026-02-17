@@ -108,20 +108,23 @@ test('Preserve complex YAML', () => {
 
 console.log('\n🔤 Unicode Safety');
 
-test('Sanitize common emojis', () => {
+// NOTE: The LiveSync unicode bug is RESOLVED. sanitizeUnicode now passes through
+// emojis and multibyte unicode; it only strips dangerous control characters.
+
+test('Emojis pass through (unicode bug resolved)', () => {
   const input = '✅ done ❌ fail ⚠️ warn';
   const output = sanitizeUnicode(input);
   
-  assertEqual(output, '[DONE] done [FAIL] fail [WARN] warn', 'Should replace known emojis');
-  assert(!output.match(/[^\x00-\x7F]/), 'Should be ASCII-only');
+  assertEqual(output, input, 'Emojis should pass through unchanged');
+  assert(output.includes('✅'), 'Checkmark emoji preserved');
 });
 
-test('Remove unknown emojis', () => {
+test('Unknown emojis pass through', () => {
   const input = 'Test 🎉 emoji 🚀 rocket';
   const output = sanitizeUnicode(input);
   
-  assertEqual(output, 'Test  emoji  rocket', 'Should remove unknown emojis');
-  assert(!output.match(/[\u{1F300}-\u{1F9FF}]/gu), 'Should have no emoji ranges');
+  assertEqual(output, input, 'Unknown emojis should pass through');
+  assert(output.includes('🎉'), 'Party emoji preserved');
 });
 
 test('Preserve ASCII text', () => {
@@ -129,6 +132,15 @@ test('Preserve ASCII text', () => {
   const output = sanitizeUnicode(input);
   
   assertEqual(output, input, 'Should preserve ASCII');
+});
+
+test('Strip null bytes and dangerous controls', () => {
+  const input = 'Hello\x00World\x01Test';
+  const output = sanitizeUnicode(input);
+  
+  assert(!output.includes('\x00'), 'Null byte should be stripped');
+  assert(!output.includes('\x01'), 'Control char should be stripped');
+  assert(output.includes('Hello') && output.includes('World'), 'Normal text preserved');
 });
 
 // ===== List Standardization Tests =====

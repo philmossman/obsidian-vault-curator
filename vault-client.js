@@ -7,30 +7,24 @@ const nano = require('nano');
 const crypto = require('crypto');
 
 /**
- * Sanitize Unicode characters to prevent LiveSync corruption
- * LiveSync counts byte length vs string length differently for multibyte UTF-8
+ * Sanitize text before writing to vault.
+ *
+ * Historical note: this function previously stripped all non-ASCII characters
+ * to work around a LiveSync byte-counting bug that caused CouchDB corruption.
+ * That bug is RESOLVED (see MEMORY.md). Unicode, emojis, and multibyte UTF-8
+ * are now safe to store.
+ *
+ * This function now only strips actual dangerous control characters (null bytes
+ * and other non-printable ASCII controls, excluding whitespace \t \n \r).
+ *
  * @param {string} text - Text to sanitize
- * @returns {string} - ASCII-safe text
+ * @returns {string} - Sanitized text (unicode preserved)
  */
 function sanitizeUnicode(text) {
-  return text
-    // Replace common emojis with text equivalents
-    .replace(/✅/g, '[DONE]')
-    .replace(/❌/g, '[FAIL]')
-    .replace(/⚠️/g, '[WARN]')
-    .replace(/→/g, '->')
-    .replace(/✓/g, '[OK]')
-    .replace(/✗/g, '[X]')
-    .replace(/📝/g, '[NOTE]')
-    .replace(/🔍/g, '[SEARCH]')
-    .replace(/💡/g, '[IDEA]')
-    .replace(/🎯/g, '[TARGET]')
-    .replace(/🔥/g, '[HOT]')
-    .replace(/⭐/g, '[STAR]')
-    // Remove all other emojis (range covers most emoji blocks)
-    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
-    // Remove other multibyte UTF-8 characters (keep basic Latin + common punctuation)
-    .replace(/[^\x00-\x7F]/g, '');
+  if (typeof text !== 'string') return String(text || '');
+  // Strip null bytes and other dangerous control characters (\x00-\x08, \x0e-\x1f)
+  // Keep tab (\x09), newline (\x0a), carriage return (\x0d) — normal whitespace
+  return text.replace(/[\x00-\x08\x0e-\x1f]/g, '');
 }
 
 class VaultClient {
@@ -114,7 +108,7 @@ class VaultClient {
    * @returns {Promise<Object>} Result with ok, id, rev
    */
   async writeNote(path, content, options = {}) {
-    // CRITICAL: Sanitize Unicode to prevent CouchDB corruption
+    // Sanitize content (strips dangerous control chars; unicode/emojis preserved — see sanitizeUnicode)
     const safeContent = sanitizeUnicode(content);
     
     const docId = this._pathToId(path);

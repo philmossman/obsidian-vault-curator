@@ -68,18 +68,19 @@ test('Config loads with defaults', () => {
   assertEqual(config.couchdb.database, 'obsidian', 'Default database should be obsidian');
 });
 
-// Test 2: Unicode sanitization
-test('Unicode sanitization removes emojis', () => {
+// Test 2: Unicode sanitization (LiveSync bug RESOLVED — emojis now pass through)
+test('Unicode passthrough: emojis preserved', () => {
   const input = 'Hello ✅ World 🔥 Test';
   const output = sanitizeUnicode(input);
-  assertEqual(output, 'Hello [DONE] World [HOT] Test', 'Emojis should be replaced');
-  assert(!output.match(/[\u{1F300}-\u{1F9FF}]/gu), 'Should not contain emoji ranges');
+  assertEqual(output, input, 'Emojis should pass through unchanged');
+  assert(output.includes('✅') && output.includes('🔥'), 'Emojis preserved');
 });
 
-test('Unicode sanitization handles multiple emojis', () => {
+test('Unicode passthrough: multiple emojis preserved', () => {
   const input = '📝 Note 💡 Idea 🎯 Target';
   const output = sanitizeUnicode(input);
-  assertEqual(output, '[NOTE] Note [IDEA] Idea [TARGET] Target', 'All emojis should be replaced');
+  assertEqual(output, input, 'All emojis should pass through');
+  assert(output.includes('📝') && output.includes('💡') && output.includes('🎯'), 'All emojis preserved');
 });
 
 // Test 3: Frontmatter parsing
@@ -203,7 +204,7 @@ asyncTest('Read a note from vault', async () => {
   console.log(`  Read note: ${note.path} (${note.content.length} bytes)`);
 });
 
-asyncTest('Test Unicode sanitization in real note', async () => {
+asyncTest('Test Unicode passthrough in real note (LiveSync bug resolved)', async () => {
   const config = loadConfig();
   const vaultClient = new VaultClient(config.couchdb);
   
@@ -217,15 +218,16 @@ source: test
 Test note with emojis ✅ 🔥 📝`;
   
   try {
-    // Write with sanitization
+    // Write note (emojis should pass through)
     await vaultClient.writeNote(testPath, testContent);
     console.log('  ✅ Created test note with Unicode');
     
     // Read it back
     const note = await vaultClient.readNote(testPath);
     assert(note, 'Should be able to read note back');
-    assert(note.content.includes('[DONE]'), 'Emojis should be sanitized');
-    console.log('  ✅ Unicode was properly sanitized');
+    assert(note.content.includes('✅') && note.content.includes('🔥'), 'Emojis should be preserved (unicode bug resolved)');
+    assert(!note.content.includes('[DONE]'), 'Should not contain old replacement tokens');
+    console.log('  ✅ Unicode passed through correctly');
     
     // Clean up
     await vaultClient.deleteNote(testPath);

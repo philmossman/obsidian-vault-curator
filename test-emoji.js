@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Test emoji sanitization end-to-end
- * Creates a note with emojis, processes it, verifies sanitization
+ * Test emoji/unicode passthrough end-to-end
+ * Creates a note with emojis, writes to vault, verifies unicode is preserved.
+ * The LiveSync unicode bug is RESOLVED — emojis and multibyte chars now pass through.
  */
 
 const VaultClient = require('./vault-client');
@@ -9,7 +10,7 @@ const { processInbox } = require('./processor');
 const loadConfig = require('./config');
 
 async function testEmojiSanitization() {
-  console.log('🧪 Testing Emoji Sanitization End-to-End\n');
+  console.log('🧪 Testing Emoji/Unicode Passthrough End-to-End\n');
   
   const config = loadConfig();
   const vaultClient = new VaultClient(config.couchdb);
@@ -56,10 +57,11 @@ Next steps 👉:
     console.log(readNote.content);
     console.log('-'.repeat(60));
     
-    // Check for emoji sanitization
+    // Unicode bug is RESOLVED — emojis should be preserved, not stripped
     const hasEmojis = /[\u{1F300}-\u{1F9FF}]/gu.test(readNote.content);
-    console.log(`\n✅ Emojis removed: ${!hasEmojis ? 'YES' : 'NO (FAIL)'}`);
-    console.log(`✅ Contains replacements: ${readNote.content.includes('[DONE]') ? 'YES' : 'NO'}\n`);
+    const hasStrippedReplacements = readNote.content.includes('[DONE]') || readNote.content.includes('[TARGET]');
+    console.log(`\n${hasEmojis ? '✅' : '❌'} Emojis preserved: ${hasEmojis ? 'YES' : 'NO (FAIL — emojis should pass through)'}`);
+    console.log(`${!hasStrippedReplacements ? '✅' : '❌'} No text replacements: ${!hasStrippedReplacements ? 'YES' : 'NO (FAIL — should not replace emojis with [TEXT])'}\n`);
     
     // Step 3: Process with AI
     console.log('Step 3: Processing with AI...');
@@ -88,9 +90,9 @@ Next steps 👉:
       console.log(`  Confidence: ${frontmatter.ai_suggestions.confidence}`);
     }
     
-    // Step 5: Verify no emojis in final version
+    // Step 5: Verify emojis are still present in final version
     const finalHasEmojis = /[\u{1F300}-\u{1F9FF}]/gu.test(finalNote.content);
-    console.log(`\n✅ Final note emoji-free: ${!finalHasEmojis ? 'YES' : 'NO (FAIL)'}`);
+    console.log(`\n${finalHasEmojis ? '✅' : '❌'} Final note preserves emojis: ${finalHasEmojis ? 'YES' : 'NO (FAIL)'}`);
     
     // Clean up
     console.log('\nStep 5: Cleaning up...');
@@ -98,7 +100,7 @@ Next steps 👉:
     console.log('✅ Test note deleted\n');
     
     console.log('='.repeat(60));
-    console.log('🎉 Emoji Sanitization Test Complete!');
+    console.log('🎉 Emoji Unicode Passthrough Test Complete!');
     console.log('='.repeat(60));
     
   } catch (err) {

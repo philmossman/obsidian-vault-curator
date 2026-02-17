@@ -193,7 +193,6 @@ async function extractInsights(memoryFiles, extractionFn = null) {
 }
 
 // buildExtractionPrompt is now in prompts.js — imported at top of file
-}
 
 /**
  * Make filing decision for an insight
