@@ -133,7 +133,7 @@ function calculateRelevance(note, topic, tags, content) {
   // Derive title from filename (no separate title field in CouchDB metadata)
   const filename = notePath.split('/').pop().replace(/\.md$/, '').replace(/[-_]/g, ' ');
   const title = filename;
-  const noteTags = note.tags || [];
+  const noteTags = Array.isArray(note.tags) ? note.tags : (note.tags ? [note.tags] : []);
   const noteContent = note.content?.toLowerCase() || '';
 
   // 1. Path matching (0.0-0.4)
@@ -165,10 +165,10 @@ function calculateRelevance(note, topic, tags, content) {
   // 3. Tag overlap (0.0-0.2)
   if (tags.length > 0 && noteTags.length > 0) {
     const tagOverlap = tags.filter(tag => 
-      noteTags.some(noteTag => 
-        noteTag.toLowerCase().includes(tag.toLowerCase()) ||
-        tag.toLowerCase().includes(noteTag.toLowerCase())
-      )
+      noteTags.some(noteTag => {
+        const nt = String(noteTag).toLowerCase();
+        return nt.includes(tag.toLowerCase()) || tag.toLowerCase().includes(nt);
+      })
     );
     score += (tagOverlap.length / tags.length) * 0.2;
   }
@@ -202,7 +202,7 @@ function explainScore(note, topic, tags, score) {
   const reasons = [];
   const path = note.path.toLowerCase();
   const title = note.title?.toLowerCase() || '';
-  const noteTags = note.tags || [];
+  const noteTags = Array.isArray(note.tags) ? note.tags : (note.tags ? [note.tags] : []);
 
   if (path.includes(slugify(topic))) {
     reasons.push('folder/filename match');
@@ -210,7 +210,7 @@ function explainScore(note, topic, tags, score) {
   if (title.includes(topic.toLowerCase())) {
     reasons.push('title match');
   }
-  if (tags.some(tag => noteTags.some(nt => nt.toLowerCase().includes(tag.toLowerCase())))) {
+  if (tags.some(tag => noteTags.some(nt => String(nt).toLowerCase().includes(tag.toLowerCase())))) {
     reasons.push('tag overlap');
   }
   if (path.includes('build-log') || path.includes('action-plan')) {
